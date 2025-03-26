@@ -1,17 +1,21 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
+from re import fullmatch
 
 class Conta:
+    __numero = 0
+
     def __init__(self, **dados):
-        self.numero = dados['numero']
+        Conta.__numero += 1
+        self.numero = Conta.__numero
         self.agencia = dados['agencia']
-        self.cliente = dados['cliente']
+        self.cliente = dados['cliente'].nome
         self.__saldo = 0.00
         self.historico = Historico()
     
     @property
     def saldo(self):
-        return f'Conta/Ag: {self.numero}/{self.agencia} - Saldo: R$ {self.__saldo}'
+        return self.__saldo
     
     def atualizar_saldo(self, valor):
         self.__saldo += valor
@@ -30,6 +34,14 @@ class Conta:
         print(f'Saldo Atual: R$ {self.__saldo:.2f}\n')
         valor = float(input('Depositar R$ '))
         Deposito(valor).registrar(self) if valor > 0.00 else print('Operação Cancelada, valor inválido!')
+
+    @classmethod
+    def abre_conta(cls, cliente):
+        agencia = input('Digite a agência: ')
+        if not agencia:
+            raise ValueError('A agência deve ser informada!')
+        conta = cls(agencia=agencia, cliente=cliente)
+        cliente.vincula_conta(conta)
 
 class ContaCorrente(Conta):
         def __init__(self, **dados):
@@ -90,18 +102,79 @@ class Saque(Transacao):
         conta.atualizar_saldo(self.valor)
         conta.historico.adiciona_transacao(self)
 
-dados = {
-    'numero': 1,
-    'agencia': 1,
-    'cliente': 'Kaio'
-}
-conta1 = ContaCorrente(**dados)
-print(conta1)
+class Cliente:
+    def __init__(self, endereco):
+        self.__endereco = endereco
+        self.contas = dict()
+    
+    def vincula_conta(self, Conta):
+        self.contas[Conta.numero] = Conta
 
-conta1.depositar()
-print(conta1.saldo)
+class PessoaFisica(Cliente):
+    def __init__(self, endereco, cpf, nome, data_nascimento):
+        super().__init__(endereco)
+        self.cpf = cpf
+        self.nome = nome
+        self.data_nascimento = data_nascimento
+    
+    @classmethod
+    def registra_pessoa(cls, *args):
+        if any(arg is None for arg in args):
+            raise ValueError("Para se registrar, se faz obrigatório os preenchimento de todos os dados corretamente!")
+        return cls(*args)
 
-conta1.sacar()
-print(conta1.saldo)
+##############
+def main():
+    global clientes
+    clientes = set()
+    while True:
+        print("==BEM-VINDO AO PYBANK==\n[1] Criar Conta\n[2] Depósito\n[3] Saque\n[4] Extrato\n[5] Sair\n\nESCOLHA UMA OPERAÇÃO: \a")
+        try:
+            opcao = int(input())
 
-print(conta1.historico.movimentacoes)
+            if opcao == 5:
+                print('Obrigado por usar o Pybank!')
+                break
+            elif opcao in (1,2,3,4):
+                cliente = valida_existe_cliente()
+                if opcao == 1:
+                   ContaCorrente.abre_conta(cliente=cliente)
+                elif opcao == 2:
+                    menu_opcao_deposito(cliente)
+            else:
+                raise ValueError('Código de operação inválido!')
+        except Exception as e:
+            print(f'{e}\n')
+
+def valida_existe_cliente() -> Cliente:
+    cpf = str(input('Insira seu cpf (sem pontuação): '))
+    if not validar_cpf(cpf):
+        raise ValueError(f'O cpf {cpf} é inválido!')
+    cliente = next((x for x in clientes if x.cpf == cpf),False)
+    if not cliente:
+        endereco = input('Insira seu endereço: ')
+        nome = input('Insira seu nome: ')
+        dtnascimento = input('insira sua data de nascimento: ')
+        cliente = PessoaFisica.registra_pessoa(endereco, cpf, nome, dtnascimento,)
+        clientes.add(cliente)
+        print(clientes)
+    return cliente
+
+def validar_cpf(cpf: str) -> bool:
+    return bool(fullmatch(r"\d{11}", cpf))
+
+def menu_opcao_deposito(cliente):
+    print(f'===CONTAS DE {cliente.nome}')   
+    print(cliente.contas)
+    for numero, conta in cliente.contas.items():
+        print(f'Número: {numero} - Saldo: R$ {conta.saldo:.2f}')
+    conta_escolhida = input('Digite a conta para depositar:')
+    conta_escolhida = next((conta for numero, conta in cliente.contas.items() if numero == conta_escolhida),None)
+
+    if not conta_escolhida:
+        raise KeyError('Conta inválida!')
+    
+    conta_escolhida.depositar()
+
+if __name__ == '__main__':
+    main()
