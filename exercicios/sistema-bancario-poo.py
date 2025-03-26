@@ -165,10 +165,10 @@ def validar_cpf(cpf: str) -> bool:
 
 def menu_opcao_deposito(cliente):
     print(f'===CONTAS DE {cliente.nome}')   
-    print(cliente.contas)
     for numero, conta in cliente.contas.items():
         print(f'Número: {numero} - Saldo: R$ {conta.saldo:.2f}')
-    conta_escolhida = input('Digite a conta para depositar:')
+
+    conta_escolhida = int(input('Digite a conta para depositar:'))
     conta_escolhida = next((conta for numero, conta in cliente.contas.items() if numero == conta_escolhida),None)
 
     if not conta_escolhida:
